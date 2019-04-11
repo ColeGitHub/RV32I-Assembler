@@ -2,36 +2,37 @@
 
 import itypes
 
+
 class Assembler:
 
     instructions = {
             "lui": [0b0110111, "u"],
             "auipc": [0b0010111, "u"],
             "jal": [0b1101111, "j"],
-            "jalr": [0b1100111, "i"],
+            "jalr": [0b1100111, "j"],
             "beq": [0b1100011, "b"],
             "bne": [0b1100011, "b"],
             "blt": [0b1100011, "b"],
             "bge": [0b1100011, "b"],
             "bltu": [0b1100011, "b"],
             "bgeu": [0b1100011, "b"],
-            "lb": [0x0000011, "i"],
-            "lh": [0x0000011, "i"],
-            "lw": [0x0000011, "i"],
-            "lbu": [0x0000011, "i"],
-            "lhu": [0x0000011, "i"],
+            "lb": [0b0000011, "l"],
+            "lh": [0b0000011, "l"],
+            "lw": [0b0000011, "l"],
+            "lbu": [0b0000011, "l"],
+            "lhu": [0b0000011, "l"],
             "sb": [0b0100011, "s"],
             "sh": [0b0100011, "s"],
             "sw": [0b0100011, "s"],
-            "addi": [0b0010011,"i"],
-            "slti": [0b0010011,"i"],
-            "sltiu": [0b0010011,"i"],
-            "xori": [0b0010011,"i"],
-            "ori": [0b0010011,"i"],
-            "andi": [0b0010011,"i"],
-            "slli": [0b0010011,"i"],
-            "srli": [0b0010011,"i"],
-            "srai": [0b0010011,"i"],
+            "addi": [0b0010011, "i"],
+            "slti": [0b0010011, "i"],
+            "sltiu": [0b0010011, "i"],
+            "xori": [0b0010011, "i"],
+            "ori": [0b0010011, "i"],
+            "andi": [0b0010011, "i"],
+            "slli": [0b0010011, "i"],
+            "srli": [0b0010011, "i"],
+            "srai": [0b0010011, "i"],
             "add": [0b0110011, "r"],
             "sub": [0b0110011, "r"],
             "slt": [0b0110011, "r"],
@@ -98,8 +99,11 @@ class Assembler:
 
         tokens = instr.lstrip().split(None, 1)
         tokens[1] = tokens[1].replace(" ", "").split(",")
-
         tokens_temp = []
+
+#        print(tokens)
+#        print(tokens[1])
+
         for token in tokens[1]:
 
             if token in registers:
@@ -108,9 +112,12 @@ class Assembler:
                 if len(token) == 2:
                     tokens_temp.append(int(token[1]))
                 else:
-                    tokens_temp.append( (int(token[1]) * 10) + int(token[2]) )
+                    tokens_temp.append(int(token[1:3]))
+            elif self.is_dig(token):
+                tokens_temp.append(int(token))
             else:
-                print("Illegal register token")
+                print("Unexpected token")
+                return 0
 
         tokens[1] = tokens_temp
 
@@ -118,22 +125,36 @@ class Assembler:
         op = tokens[0]
         opcode, instr_type = instructions[tokens[0]]
         args = tokens[1]
+        bin_instr = 0
 
         if instr_type == "j":
-            return types.j_type(opcode, op, args)
+            bin_instr = types.j_type(opcode, op, args)
         elif instr_type == "u":
-            return types.u_type(opcode, op, args)
+            bin_instr = types.u_type(opcode, op, args)
         elif instr_type == "b":
-            return types.b_type(opcode, op, args)
+            bin_instr = types.b_type(opcode, op, args)
+        elif instr_type == "l":
+            bin_instr = types.l_type(opcode, op, args)
         elif instr_type == "i":
-            return types.i_type(opcode, op, args)
+            bin_instr = types.i_type(opcode, op, args)
         elif instr_type == "s":
-            return types.s_type(opcode, op, args)
+            bin_instr = types.s_type(opcode, op, args)
         elif instr_type == "r":
-            return types.r_type(opcode, op, args)
+            bin_instr = types.r_type(opcode, op, args)
         elif instr_type == "f":
-            return types.f_type(opcode, op, args)
+            bin_instr = types.f_type(opcode, op, args)
         elif instr_type == "c":
-            return types.c_type(opcode, op, args)
+            bin_instr = types.c_type(opcode, op, args)
 
+        if bin_instr == 0:
+            print("Error: Can't convert instruction: " + instr)
+            return 0
+        else:
+            return bin_instr
 
+    def is_dig(self, num_string):
+        try:
+            int(num_string)
+            return True
+        except ValueError:
+            return False

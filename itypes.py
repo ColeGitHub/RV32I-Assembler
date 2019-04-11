@@ -65,41 +65,107 @@ class ITypes:
             }
 
     def j_type(self, opcode, op, tokens):
+        # JAL, JALR instructions
+        rd = tokens[0] << 7
 
-        # JAL instruction
-        return 0
+        if op == "jalr":
+            if tokens[2] > 2047 or tokens[2] < -2048:
+                return 0
+
+            rs1 = tokens[1] << 15
+            imm = (tokens[2] & 0xFFF) << 20
+            return 0 | opcode | rd | rs1 | imm
+
+        if tokens[1] > 524287 or tokens[1] < -524288:
+            return 0
+
+        imm = tokens[1]
+        imm20 = ((imm >> 19) & 1) << 31
+        imm10to1 = (imm & 0x3FF) << 21
+        imm11 = ((imm >> 10) & 0x1) << 20
+        imm19to12 = ((imm >> 11) & 0xFF) << 12
+        return 0 | opcode | rd | imm19to12 | imm11 | imm10to1 | imm20
 
 
     def u_type(self, opcode, op, tokens):
         # LUI, AUIPC instructions
+        if tokens[1] > 1048575 or tokens[1] < -1048576:
+            return 0
 
-        return 0
+        rd = tokens[0] << 7
+        imm = tokens[1] << 12
+        return 0 | opcode | rd | imm
 
 
     def b_type(self, opcode, op, tokens):
         # Branch instructions
-        branch_dict = self.branch_dict
-        return 0
+        if tokens[2] > 511 or tokens[2] < -512:
+            return 0
+
+        funct3 = self.branch_dict[op] << 12
+        rs1 = tokens[0] << 15
+        rs2 = tokens[1] << 20
+        imm = tokens[2]
+        imm12 = (imm >> 11) << 31
+        imm11 = ((imm >> 10) & 0x1) << 7
+        imm10to5 = ((imm >> 4) & 0x3F) << 25
+        imm4to1 = (imm & 0xF) << 8
+
+        instr = 0 | opcode | imm11 | imm4to1 | funct3 | rs1 | rs2 | imm10to5 | imm12
+        return instr
 
 
     def i_type(self, opcode, op, tokens):
-        # Immediate instructions
-        load_dict = self.load_dict
-        arith_i_dict = self.arith_imm_dict
-        return 0
+        # Arith-Immediate instructions
+        if tokens[2] > 511 or tokens[2] < -512:
+            return 0
+
+        funct3 = self.arith_imm_dict[op] << 12
+
+        if op != "srai":
+            funct7 = 0
+        else:
+            funct7 = 1 << 30
+
+        rd = tokens[0] << 7
+        rs1 = tokens[1] << 15
+        imm = tokens[2] << 20
+        instr = 0 | opcode | rd | funct3 | rs1 | imm
+
+        if op in ["slli", "srli", "srai"]:
+            instr = instr | funct7
+
+        return instr
+
+
+    def l_type(self, opcode, op, tokens):
+        # Load instruction
+        funct3 = self.load_dict[op] << 12
+
+        rd = tokens[0] << 7
+        rs1 = tokens[1] << 15
+        imm = tokens[2] << 20
+        instr = 0 | opcode | rd | funct3 | rs1 | imm
+
+        return instr
 
 
     def s_type(self, opcode, op, tokens):
         # Store instructions
-        store_dict = self.store_dict
-        return 0
+        funct3 = self.store_dict[op] << 12
+        rs1 = tokens[0] << 15
+        rs2 = tokens[1] << 20
+        imm11to5 = (tokens[2] >> 5) << 25
+        imm4to0 = (tokens[2] & 0x1F) << 7
+
+        instr = 0 | opcode | imm4to0 | funct3 | rs1 | rs2 | imm11to5
+
+        return instr
 
 
     def r_type(self, opcode, op, tokens):
         # Register instructions
-        arith_dict = self.arith_dict
-
-        funct3 = arith_dict[op] << 12
+        funct3 = self.arith_dict[op] << 12
 
         if op != "sub" and op != "sra":
             funct7 = 0
@@ -110,7 +176,7 @@ class ITypes:
         rs1 = tokens[1] << 15
         rs2 = tokens[2] << 20
 
-        instr = 0 & opcode & rd & funct3 & rs1 & rs2 & funct7
+        instr = 0 | opcode | rd | funct3 | rs1 | rs2 | funct7
 
         return instr
 
